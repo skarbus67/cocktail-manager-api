@@ -6,6 +6,7 @@ from django.core.paginator import Paginator
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from .models import Ingredient
+from django.shortcuts import get_object_or_404
 
 @method_decorator(csrf_exempt, name='dispatch')
 class IngredientListCreateView(View):
@@ -57,3 +58,39 @@ class IngredientListCreateView(View):
             
         except json.JSONDecodeError:
             return JsonResponse({"error": "Nieprawidłowy format JSON."}, status=400)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class IngredientDetailView(View):
+    def get(self, request, ingredient_id):
+        ingredient = get_object_or_404(Ingredient, id=ingredient_id)
+        return JsonResponse({
+            "id": ingredient.id,
+            "name": ingredient.name,
+            "description": ingredient.description,
+            "is_alcoholic": ingredient.is_alcoholic,
+            "image": ingredient.image.url if ingredient.image else None
+        })
+
+    def put(self, request, ingredient_id):
+        ingredient = get_object_or_404(Ingredient, id=ingredient_id)
+        try:
+            data = json.loads(request.body)
+            ingredient.name = data.get('name', ingredient.name)
+            ingredient.description = data.get('description', ingredient.description)
+            ingredient.is_alcoholic = data.get('is_alcoholic', ingredient.is_alcoholic)
+            ingredient.save()
+            
+            return JsonResponse({
+                "id": ingredient.id,
+                "name": ingredient.name,
+                "description": ingredient.description,
+                "is_alcoholic": ingredient.is_alcoholic,
+            })
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Nieprawidłowy format JSON."}, status=400)
+
+    def delete(self, request, ingredient_id):
+        ingredient = get_object_or_404(Ingredient, id=ingredient_id)
+        ingredient.delete()
+        return JsonResponse({}, status=204)
