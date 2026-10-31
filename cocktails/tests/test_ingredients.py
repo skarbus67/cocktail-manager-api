@@ -159,3 +159,38 @@ class IngredientDetailTests(BaseTestCase):
     def test_delete_not_found(self):
         response = self.client.delete("/api/ingredients/9999/")
         self.assertEqual(response.status_code, 404)
+
+
+class IngredientFilteringSortingTests(BaseTestCase):
+    def setUp(self):
+        self.mint = self.create_ingredient("Mint", is_alcoholic=False)
+        self.rum = self.create_ingredient("Rum", is_alcoholic=True)
+        self.soda = self.create_ingredient("Soda", is_alcoholic=False)
+
+    def get_names(self, **params):
+        response = self.client.get("/api/ingredients/", params)
+        self.assertEqual(response.status_code, 200)
+        return [item["name"] for item in response.json()["items"]]
+
+    def test_filter_by_name(self):
+        self.assertEqual(self.get_names(name="mint"), ["Mint"])
+
+    def test_filter_non_alcoholic(self):
+        self.assertEqual(self.get_names(is_alcoholic="false"), ["Mint", "Soda"])
+
+    def test_filter_alcoholic(self):
+        self.assertEqual(self.get_names(is_alcoholic="true"), ["Rum"])
+
+    def test_invalid_is_alcoholic_rejected(self):
+        response = self.client.get("/api/ingredients/", {"is_alcoholic": "maybe"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("is_alcoholic", response.json()["error"])
+
+    def test_sort_by_name(self):
+        self.assertEqual(self.get_names(sort="name"), ["Mint", "Rum", "Soda"])
+
+    def test_sort_by_name_descending(self):
+        self.assertEqual(self.get_names(sort="-name"), ["Soda", "Rum", "Mint"])
+
+    def test_sort_by_is_alcoholic(self):
+        self.assertEqual(self.get_names(sort="is_alcoholic")[-1], "Rum")
