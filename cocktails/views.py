@@ -10,11 +10,30 @@ from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 
+
+def _parse_pagination(request):
+    """Validate and parse the ``page`` and ``per_page`` query parameters.
+
+    Returns ``(page, per_page), None`` on success, or ``None, error_message``
+    when the input is not a positive integer.
+    """
+    try:
+        page = int(request.GET.get('page', '1'))
+        per_page = int(request.GET.get('per_page', '10'))
+    except (TypeError, ValueError):
+        return None, "The 'page' and 'per_page' parameters must be integers."
+    if page < 1 or per_page < 1:
+        return None, "The 'page' and 'per_page' parameters must be positive integers."
+    return (page, per_page), None
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class IngredientListCreateView(View):
     def get(self, request):
-        page_number = request.GET.get('page', 1)
-        per_page = request.GET.get('per_page', 10)
+        pagination, error = _parse_pagination(request)
+        if error:
+            return JsonResponse({"error": error}, status=400)
+        page_number, per_page = pagination
         
         ingredients = Ingredient.objects.all().order_by('id')
         paginator = Paginator(ingredients, per_page)
@@ -100,8 +119,10 @@ class IngredientDetailView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class CocktailListCreateView(View):
     def get(self, request):
-        page_number = request.GET.get('page', 1)
-        per_page = request.GET.get('per_page', 10)
+        pagination, error = _parse_pagination(request)
+        if error:
+            return JsonResponse({"error": error}, status=400)
+        page_number, per_page = pagination
         
         cocktails = Cocktail.objects.all()
 
@@ -340,8 +361,10 @@ class CocktailReviewView(View):
     def get(self, request, cocktail_id):
         cocktail = get_object_or_404(Cocktail, id=cocktail_id)
         
-        page_number = request.GET.get('page', 1)
-        per_page = request.GET.get('per_page', 10)
+        pagination, error = _parse_pagination(request)
+        if error:
+            return JsonResponse({"error": error}, status=400)
+        page_number, per_page = pagination
         
         reviews = Review.objects.filter(cocktail=cocktail).order_by('-id')
         paginator = Paginator(reviews, per_page)
