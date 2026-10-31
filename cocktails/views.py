@@ -35,7 +35,28 @@ class IngredientListCreateView(View):
             return JsonResponse({"error": error}, status=400)
         page_number, per_page = pagination
         
-        ingredients = Ingredient.objects.all().order_by('id')
+        ingredients = Ingredient.objects.all()
+
+        name = request.GET.get('name')
+        if name:
+            ingredients = ingredients.filter(name__icontains=name)
+
+        is_alcoholic = request.GET.get('is_alcoholic')
+        if is_alcoholic is not None:
+            if is_alcoholic.lower() == 'true':
+                ingredients = ingredients.filter(is_alcoholic=True)
+            elif is_alcoholic.lower() == 'false':
+                ingredients = ingredients.filter(is_alcoholic=False)
+            else:
+                return JsonResponse({"error": "The 'is_alcoholic' parameter must be 'true' or 'false'."}, status=400)
+
+        sort_by = request.GET.get('sort', 'id')
+        allowed_sort_fields = ['id', '-id', 'name', '-name', 'is_alcoholic', '-is_alcoholic']
+        if sort_by in allowed_sort_fields:
+            ingredients = ingredients.order_by(sort_by)
+        else:
+            ingredients = ingredients.order_by('id')
+
         paginator = Paginator(ingredients, per_page)
         page_obj = paginator.get_page(page_number)
         
