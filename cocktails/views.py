@@ -103,7 +103,33 @@ class CocktailListCreateView(View):
         page_number = request.GET.get('page', 1)
         per_page = request.GET.get('per_page', 10)
         
-        cocktails = Cocktail.objects.all().order_by('id')
+        cocktails = Cocktail.objects.all()
+
+        author_id = request.GET.get('author_id')
+        if author_id:
+            cocktails = cocktails.filter(author_id=author_id)
+
+        ingredient_name = request.GET.get('ingredient')
+        if ingredient_name:
+            cocktails = cocktails.filter(ingredients__name__icontains=ingredient_name)
+
+        is_alcoholic = request.GET.get('is_alcoholic')
+        if is_alcoholic is not None:
+            if is_alcoholic.lower() == 'false':
+                cocktails = cocktails.exclude(ingredients__is_alcoholic=True)
+            elif is_alcoholic.lower() == 'true':
+                cocktails = cocktails.filter(ingredients__is_alcoholic=True)
+
+        cocktails = cocktails.distinct()
+
+        sort_by = request.GET.get('sort', 'id')
+        allowed_sort_fields = ['id', '-id', 'name', '-name', 'category', '-category']
+        if sort_by in allowed_sort_fields:
+            cocktails = cocktails.order_by(sort_by)
+        else:
+            cocktails = cocktails.order_by('id')
+
+        # Paginacja
         paginator = Paginator(cocktails, per_page)
         page_obj = paginator.get_page(page_number)
         
@@ -164,6 +190,37 @@ class CocktailListCreateView(View):
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON format."}, status=400)
 
+    def post(self, request):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "You must be logged in to add a recipe."}, status=401)
+
+        try:
+            data = json.loads(request.body)
+            
+            if not all(k in data for k in ("name", "category", "instructions")):
+                return JsonResponse({"error": "The 'name', 'category', and 'instructions' fields are required."}, status=400)
+                
+            cocktail = Cocktail.objects.create(
+                name=data['name'],
+                category=data['category'],
+                instructions=data['instructions'],
+                author=request.user
+            )
+            
+            ingredients_data = data.get('ingredients', [])
+            for ing in ingredients_data:
+                ingredient = get_object_or_404(Ingredient, id=ing['id'])
+                CocktailIngredient.objects.create(
+                    cocktail=cocktail,
+                    ingredient=ingredient,
+                    quantity=ing.get('quantity', '')
+                )
+            
+            return JsonResponse({"id": cocktail.id, "message": "Cocktail created successfully."}, status=201)
+            
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON format."}, status=400)
+
 
 @method_decorator(csrf_exempt, name='dispatch')
 class CocktailDetailView(View):
@@ -192,7 +249,6 @@ class CocktailDetailView(View):
         if not request.user.is_authenticated:
             return JsonResponse({"error": "You must be logged in to edit a recipe."}, status=401)
             
-        # Only author or admin can edit
         if cocktail.author != request.user and not request.user.is_superuser:
             return JsonResponse({"error": "You do not have permission to edit this cocktail."}, status=403)
 
