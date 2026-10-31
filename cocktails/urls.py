@@ -2,7 +2,7 @@ from django.urls import path
 from .views import (
     IngredientListCreateView, IngredientDetailView,
         CocktailListCreateView, CocktailDetailView,
-        RegisterView, LoginView, LogoutView
+        RegisterView, LoginView, LogoutView, CocktailReviewView
 )
 
 urlpatterns = [
@@ -35,4 +35,7 @@ urlpatterns = [
     # cocktails
     path('cocktails/', CocktailListCreateView.as_view(), name='cocktail-list-create'),
     path('cocktails/<int:cocktail_id>/', CocktailDetailView.as_view(), name='cocktail-detail'),
+
+    # reviews
+    path('cocktails/<int:cocktail_id>/reviews/', CocktailReviewView.as_view(), name='cocktail-reviews'),
 ]

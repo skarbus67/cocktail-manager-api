@@ -5,7 +5,7 @@ from django.views import View
 from django.core.paginator import Paginator
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from .models import Ingredient, Cocktail, CocktailIngredient
+from .models import Ingredient, Cocktail, CocktailIngredient, Review
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
@@ -278,3 +278,67 @@ class LogoutView(View):
     def post(self, request):
         logout(request)
         return JsonResponse({"message": "Logged out successfully."})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class CocktailReviewView(View):
+    def get(self, request, cocktail_id):
+        cocktail = get_object_or_404(Cocktail, id=cocktail_id)
+        
+        page_number = request.GET.get('page', 1)
+        per_page = request.GET.get('per_page', 10)
+        
+        reviews = Review.objects.filter(cocktail=cocktail).order_by('-id')
+        paginator = Paginator(reviews, per_page)
+        page_obj = paginator.get_page(page_number)
+        
+        data = [
+            {
+                "id": r.id,
+                "user": r.user.username,
+                "rating": r.rating,
+                "content": r.content
+            } for r in page_obj
+        ]
+        
+        return JsonResponse({
+            "items": data,
+            "total": paginator.count,
+            "page": page_obj.number,
+            "pages": paginator.num_pages
+        })
+
+    def post(self, request, cocktail_id):
+        cocktail = get_object_or_404(Cocktail, id=cocktail_id)
+        
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "You must be logged in to add a review."}, status=401)
+            
+        try:
+            data = json.loads(request.body)
+            rating = data.get('rating')
+            content = data.get('content')
+            
+            if rating is None or not content:
+                return JsonResponse({"error": "The 'rating' and 'content' fields are required."}, status=400)
+                
+            try:
+                rating = int(rating)
+                if rating < 1 or rating > 5:
+                    return JsonResponse({"error": "Rating must be between 1 and 5."}, status=400)
+            except ValueError:
+                return JsonResponse({"error": "Rating must be an integer."}, status=400)
+                
+            review = Review.objects.create(
+                cocktail=cocktail,
+                user=request.user,
+                rating=rating,
+                content=content
+            )
+            
+            return JsonResponse({
+                "id": review.id,
+                "message": "Review added successfully."
+            }, status=201)
+            
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON format."}, status=400)
