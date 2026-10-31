@@ -58,9 +58,12 @@ class IngredientListCreateView(View):
         })
 
     def post(self, request):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "You must be logged in to add an ingredient."}, status=401)
+
         try:
             data = json.loads(request.body)
-            
+
             if not data.get('name'):
                 return JsonResponse({"error": "The 'name' field is required."}, status=400)
                 
@@ -96,6 +99,13 @@ class IngredientDetailView(View):
 
     def put(self, request, ingredient_id):
         ingredient = get_object_or_404(Ingredient, id=ingredient_id)
+
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "You must be logged in to edit an ingredient."}, status=401)
+
+        if not request.user.is_superuser:
+            return JsonResponse({"error": "You do not have permission to edit this ingredient."}, status=403)
+
         try:
             data = json.loads(request.body)
             ingredient.name = data.get('name', ingredient.name)
@@ -116,6 +126,13 @@ class IngredientDetailView(View):
 
     def delete(self, request, ingredient_id):
         ingredient = get_object_or_404(Ingredient, id=ingredient_id)
+
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "You must be logged in to delete an ingredient."}, status=401)
+
+        if not request.user.is_superuser:
+            return JsonResponse({"error": "You do not have permission to delete this ingredient."}, status=403)
+
         ingredient.delete()
         return JsonResponse({}, status=204)
 
