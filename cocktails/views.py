@@ -43,7 +43,7 @@ class IngredientListCreateView(View):
             data = json.loads(request.body)
             
             if not data.get('name'):
-                return JsonResponse({"error": "Pole 'name' jest wymagane."}, status=400)
+                return JsonResponse({"error": "The 'name' field is required."}, status=400)
                 
             ingredient = Ingredient.objects.create(
                 name=data['name'],
@@ -59,7 +59,7 @@ class IngredientListCreateView(View):
             }, status=201)
             
         except json.JSONDecodeError:
-            return JsonResponse({"error": "Nieprawidłowy format JSON."}, status=400)
+            return JsonResponse({"error": "Invalid JSON format."}, status=400)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -90,7 +90,7 @@ class IngredientDetailView(View):
                 "is_alcoholic": ingredient.is_alcoholic,
             })
         except json.JSONDecodeError:
-            return JsonResponse({"error": "Nieprawidłowy format JSON."}, status=400)
+            return JsonResponse({"error": "Invalid JSON format."}, status=400)
 
     def delete(self, request, ingredient_id):
         ingredient = get_object_or_404(Ingredient, id=ingredient_id)
@@ -135,13 +135,13 @@ class CocktailListCreateView(View):
 
     def post(self, request):
         if not request.user.is_authenticated:
-            return JsonResponse({"error": "Musisz być zalogowany, aby dodać przepis."}, status=401)
+            return JsonResponse({"error": "You must be logged in to add a recipe."}, status=401)
 
         try:
             data = json.loads(request.body)
             
             if not all(k in data for k in ("name", "category", "instructions")):
-                return JsonResponse({"error": "Pola 'name', 'category' i 'instructions' są wymagane."}, status=400)
+                return JsonResponse({"error": "The 'name', 'category', and 'instructions' fields are required."}, status=400)
                 
             cocktail = Cocktail.objects.create(
                 name=data['name'],
@@ -159,10 +159,10 @@ class CocktailListCreateView(View):
                     quantity=ing.get('quantity', '')
                 )
             
-            return JsonResponse({"id": cocktail.id, "message": "Koktajl utworzony pomyślnie."}, status=201)
+            return JsonResponse({"id": cocktail.id, "message": "Cocktail created successfully."}, status=201)
             
         except json.JSONDecodeError:
-            return JsonResponse({"error": "Nieprawidłowy format JSON."}, status=400)
+            return JsonResponse({"error": "Invalid JSON format."}, status=400)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -190,11 +190,11 @@ class CocktailDetailView(View):
         cocktail = get_object_or_404(Cocktail, id=cocktail_id)
         
         if not request.user.is_authenticated:
-            return JsonResponse({"error": "Musisz być zalogowany, aby edytować przepis."}, status=401)
+            return JsonResponse({"error": "You must be logged in to edit a recipe."}, status=401)
             
-        # Tylko autor lub admin może edytować
+        # Only author or admin can edit
         if cocktail.author != request.user and not request.user.is_superuser:
-            return JsonResponse({"error": "Brak uprawnień do edycji tego koktajlu."}, status=403)
+            return JsonResponse({"error": "You do not have permission to edit this cocktail."}, status=403)
 
         try:
             data = json.loads(request.body)
@@ -213,18 +213,18 @@ class CocktailDetailView(View):
                         quantity=ing.get('quantity', '')
                     )
             
-            return JsonResponse({"id": cocktail.id, "message": "Zaktualizowano pomyślnie."})
+            return JsonResponse({"id": cocktail.id, "message": "Updated successfully."})
         except json.JSONDecodeError:
-            return JsonResponse({"error": "Nieprawidłowy format JSON."}, status=400)
+            return JsonResponse({"error": "Invalid JSON format."}, status=400)
 
     def delete(self, request, cocktail_id):
         cocktail = get_object_or_404(Cocktail, id=cocktail_id)
         
         if not request.user.is_authenticated:
-            return JsonResponse({"error": "Musisz być zalogowany, aby usunąć przepis."}, status=401)
+            return JsonResponse({"error": "You must be logged in to delete a recipe."}, status=401)
             
         if cocktail.author != request.user and not request.user.is_superuser:
-            return JsonResponse({"error": "Brak uprawnień do usunięcia tego koktajlu."}, status=403)
+            return JsonResponse({"error": "You do not have permission to delete this cocktail."}, status=403)
             
         cocktail.delete()
         return JsonResponse({}, status=204)
@@ -241,16 +241,16 @@ class RegisterView(View):
             email = data.get('email', '')
 
             if not username or not password:
-                return JsonResponse({"error": "Nazwa użytkownika i hasło są wymagane."}, status=400)
+                return JsonResponse({"error": "Username and password are required."}, status=400)
 
             if User.objects.filter(username=username).exists():
-                return JsonResponse({"error": "Użytkownik o podanej nazwie już istnieje."}, status=400)
+                return JsonResponse({"error": "A user with that username already exists."}, status=400)
 
             user = User.objects.create_user(username=username, email=email, password=password)
-            return JsonResponse({"message": "Zarejestrowano pomyślnie.", "user_id": user.id}, status=201)
+            return JsonResponse({"message": "Registered successfully.", "user_id": user.id}, status=201)
 
         except json.JSONDecodeError:
-            return JsonResponse({"error": "Nieprawidłowy format JSON."}, status=400)
+            return JsonResponse({"error": "Invalid JSON format."}, status=400)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -265,16 +265,16 @@ class LoginView(View):
 
             if user is not None:
                 login(request, user)
-                return JsonResponse({"message": "Zalogowano pomyślnie.", "user_id": user.id})
+                return JsonResponse({"message": "Logged in successfully.", "user_id": user.id})
             else:
-                return JsonResponse({"error": "Nieprawidłowe dane logowania."}, status=401)
+                return JsonResponse({"error": "Invalid credentials."}, status=401)
 
         except json.JSONDecodeError:
-            return JsonResponse({"error": "Nieprawidłowy format JSON."}, status=400)
+            return JsonResponse({"error": "Invalid JSON format."}, status=400)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
 class LogoutView(View):
     def post(self, request):
         logout(request)
-        return JsonResponse({"message": "Wylogowano pomyślnie."})
+        return JsonResponse({"message": "Logged out successfully."})
