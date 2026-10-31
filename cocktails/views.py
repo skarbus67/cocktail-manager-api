@@ -7,6 +7,8 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from .models import Ingredient, Cocktail, CocktailIngredient
 from django.shortcuts import get_object_or_404
+from django.contrib.auth.models import User
+from django.contrib.auth import authenticate, login, logout
 
 @method_decorator(csrf_exempt, name='dispatch')
 class IngredientListCreateView(View):
@@ -208,3 +210,53 @@ class CocktailDetailView(View):
         cocktail = get_object_or_404(Cocktail, id=cocktail_id)
         cocktail.delete()
         return JsonResponse({}, status=204)
+
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RegisterView(View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            username = data.get('username')
+            password = data.get('password')
+            email = data.get('email', '')
+
+            if not username or not password:
+                return JsonResponse({"error": "Nazwa użytkownika i hasło są wymagane."}, status=400)
+
+            if User.objects.filter(username=username).exists():
+                return JsonResponse({"error": "Użytkownik o podanej nazwie już istnieje."}, status=400)
+
+            user = User.objects.create_user(username=username, email=email, password=password)
+            return JsonResponse({"message": "Zarejestrowano pomyślnie.", "user_id": user.id}, status=201)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Nieprawidłowy format JSON."}, status=400)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class LoginView(View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            username = data.get('username')
+            password = data.get('password')
+
+            user = authenticate(request, username=username, password=password)
+
+            if user is not None:
+                login(request, user)
+                return JsonResponse({"message": "Zalogowano pomyślnie.", "user_id": user.id})
+            else:
+                return JsonResponse({"error": "Nieprawidłowe dane logowania."}, status=401)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Nieprawidłowy format JSON."}, status=400)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class LogoutView(View):
+    def post(self, request):
+        logout(request)
+        return JsonResponse({"message": "Wylogowano pomyślnie."})
