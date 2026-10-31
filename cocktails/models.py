@@ -6,7 +6,7 @@ class Ingredient(models.Model):
     name = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
     is_alcoholic = models.BooleanField(default=False)
-    image = models.ImageField(upload_to='ingredients/', blank=True, null=True) 
+    image = models.URLField(max_length=1000, blank=True, null=True)
 
     def __str__(self):
         return self.name

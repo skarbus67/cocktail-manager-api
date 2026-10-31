@@ -45,7 +45,7 @@ class IngredientListCreateView(View):
                 "name": item.name,
                 "description": item.description,
                 "is_alcoholic": item.is_alcoholic,
-                "image": item.image.url if item.image else None
+                "image": item.image # Usunięto .url
             }
             for item in page_obj
         ]
@@ -67,7 +67,8 @@ class IngredientListCreateView(View):
             ingredient = Ingredient.objects.create(
                 name=data['name'],
                 description=data.get('description', ''),
-                is_alcoholic=data.get('is_alcoholic', False)
+                is_alcoholic=data.get('is_alcoholic', False),
+                image=data.get('image', None) # Dodano odczyt pola image
             )
             
             return JsonResponse({
@@ -75,11 +76,11 @@ class IngredientListCreateView(View):
                 "name": ingredient.name,
                 "description": ingredient.description,
                 "is_alcoholic": ingredient.is_alcoholic,
+                "image": ingredient.image,
             }, status=201)
             
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON format."}, status=400)
-
 
 @method_decorator(csrf_exempt, name='dispatch')
 class IngredientDetailView(View):
@@ -90,7 +91,7 @@ class IngredientDetailView(View):
             "name": ingredient.name,
             "description": ingredient.description,
             "is_alcoholic": ingredient.is_alcoholic,
-            "image": ingredient.image.url if ingredient.image else None
+            "image": ingredient.image 
         })
 
     def put(self, request, ingredient_id):
@@ -100,6 +101,7 @@ class IngredientDetailView(View):
             ingredient.name = data.get('name', ingredient.name)
             ingredient.description = data.get('description', ingredient.description)
             ingredient.is_alcoholic = data.get('is_alcoholic', ingredient.is_alcoholic)
+            ingredient.image = data.get('image', ingredient.image) # Dodano przypisanie pola image
             ingredient.save()
             
             return JsonResponse({
@@ -107,6 +109,7 @@ class IngredientDetailView(View):
                 "name": ingredient.name,
                 "description": ingredient.description,
                 "is_alcoholic": ingredient.is_alcoholic,
+                "image": ingredient.image,
             })
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON format."}, status=400)
