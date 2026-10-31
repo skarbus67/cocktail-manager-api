@@ -109,7 +109,6 @@ class CocktailListCreateView(View):
         
         data = []
         for item in page_obj:
-            # Pobieranie powiązanych składników i ich ilości
             ingredients_data = [
                 {
                     "ingredient_id": ci.ingredient.id, 
@@ -123,6 +122,7 @@ class CocktailListCreateView(View):
                 "name": item.name,
                 "category": item.category,
                 "instructions": item.instructions,
+                "author_id": item.author.id if item.author else None,
                 "ingredients": ingredients_data
             })
             
@@ -134,6 +134,9 @@ class CocktailListCreateView(View):
         })
 
     def post(self, request):
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Musisz być zalogowany, aby dodać przepis."}, status=401)
+
         try:
             data = json.loads(request.body)
             
@@ -143,10 +146,10 @@ class CocktailListCreateView(View):
             cocktail = Cocktail.objects.create(
                 name=data['name'],
                 category=data['category'],
-                instructions=data['instructions']
+                instructions=data['instructions'],
+                author=request.user
             )
             
-            # Zapisywanie relacji ze składnikami (oczekujemy listy słowników: [{"id": 1, "quantity": "50ml"}])
             ingredients_data = data.get('ingredients', [])
             for ing in ingredients_data:
                 ingredient = get_object_or_404(Ingredient, id=ing['id'])
@@ -179,11 +182,20 @@ class CocktailDetailView(View):
             "name": cocktail.name,
             "category": cocktail.category,
             "instructions": cocktail.instructions,
+            "author_id": cocktail.author.id if cocktail.author else None,
             "ingredients": ingredients_data
         })
         
     def put(self, request, cocktail_id):
         cocktail = get_object_or_404(Cocktail, id=cocktail_id)
+        
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Musisz być zalogowany, aby edytować przepis."}, status=401)
+            
+        # Tylko autor lub admin może edytować
+        if cocktail.author != request.user and not request.user.is_superuser:
+            return JsonResponse({"error": "Brak uprawnień do edycji tego koktajlu."}, status=403)
+
         try:
             data = json.loads(request.body)
             cocktail.name = data.get('name', cocktail.name)
@@ -192,7 +204,6 @@ class CocktailDetailView(View):
             cocktail.save()
             
             if 'ingredients' in data:
-                # Najprostszy sposób aktualizacji: usuwamy stare relacje i tworzymy nowe
                 CocktailIngredient.objects.filter(cocktail=cocktail).delete()
                 for ing in data['ingredients']:
                     ingredient = get_object_or_404(Ingredient, id=ing['id'])
@@ -208,6 +219,13 @@ class CocktailDetailView(View):
 
     def delete(self, request, cocktail_id):
         cocktail = get_object_or_404(Cocktail, id=cocktail_id)
+        
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Musisz być zalogowany, aby usunąć przepis."}, status=401)
+            
+        if cocktail.author != request.user and not request.user.is_superuser:
+            return JsonResponse({"error": "Brak uprawnień do usunięcia tego koktajlu."}, status=403)
+            
         cocktail.delete()
         return JsonResponse({}, status=204)
 
