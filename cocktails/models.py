@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 class Ingredient(models.Model):
     name = models.CharField(max_length=150)
@@ -27,3 +28,13 @@ class CocktailIngredient(models.Model):
 
     def __str__(self):
         return f"{self.quantity} {self.ingredient.name} in {self.cocktail.name}"
+
+
+class Review(models.Model):
+    cocktail = models.ForeignKey(Cocktail, on_delete=models.CASCADE, related_name='reviews')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    content = models.TextField()
+
+    def __str__(self):
+        return f"{self.rating}/5 for {self.cocktail.name} by {self.user.username}"
